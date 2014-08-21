@@ -16,8 +16,8 @@ setup(
     author           = 'Ralph Moritz',
     author_email     = 'ralphmoritz@outlook.com',
     license          = 'MIT',
-    keywords         = 'swiss pairing dutch system chess tournament',
-    packages         = find_packages(exclude=['tests*']),
+    keywords         = ['swiss', 'pairing', 'dutch', 'system', 'chess', 'tournament'],
+    packages         = ['swissdutch'],
     classifiers      = [
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: MIT License',

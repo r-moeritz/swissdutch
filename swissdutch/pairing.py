@@ -23,6 +23,11 @@ class PairingCard:
             and self.colour_hist == other.colour_hist \
             if isinstance(other, PairingCard) else NotImplemented
 
+    def __repr__(self):
+        return 'sn:{0}, r:{1}, t:{2}, pn:{3}, s:{4}, f:{5}, op:{6}, ch:{7}' \
+            .format(self.surname, self.rating, self.title, self.pairing_no,
+                    self.score, self.float, self.opponents, self.colour_hist)
+
     def pair(self, opponent, colour, float=None):
         self.opponents.append(opponent)
         self.colour_hist.append(colour)
