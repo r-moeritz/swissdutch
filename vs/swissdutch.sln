@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30501.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "swissdutch", "swissdutch.pyproj", "{089AE117-E2B7-42BE-90B2-793DC9F23A3A}"
+EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "tests", "tests.pyproj", "{E8F9140F-7AEF-429D-9130-A7D43C366A3F}"
+EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "setup", "setup.pyproj", "{16D05DEF-9EC8-47DF-B061-E10821EFE1D3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{089AE117-E2B7-42BE-90B2-793DC9F23A3A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{089AE117-E2B7-42BE-90B2-793DC9F23A3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E8F9140F-7AEF-429D-9130-A7D43C366A3F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E8F9140F-7AEF-429D-9130-A7D43C366A3F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{16D05DEF-9EC8-47DF-B061-E10821EFE1D3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{16D05DEF-9EC8-47DF-B061-E10821EFE1D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
