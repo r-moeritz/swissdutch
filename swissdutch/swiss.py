@@ -2,7 +2,7 @@ import operator
 import math
 import random
 import abc
-import copy
+from copy import copy
 from swissdutch.constants import Colour
 
 class SwissPairingEngine(metaclass=abc.ABCMeta):
@@ -43,7 +43,7 @@ class SwissPairingEngine(metaclass=abc.ABCMeta):
 
     def pair_round(self, round_no, pairing_cards):
         self.round_no      = round_no
-        self.pairing_cards = copy.deepcopy(pairing_cards)
+        self.pairing_cards = copy(pairing_cards)
 
         return self._pair_first_round() \
             if self.round_no == 1 \

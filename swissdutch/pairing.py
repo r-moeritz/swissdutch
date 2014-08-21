@@ -1,4 +1,4 @@
-import copy
+from copy import copy
 
 class PairingCard:
     def __init__(self, surname, rating, title=None, pairing_no=None, 
@@ -9,24 +9,19 @@ class PairingCard:
         self.pairing_no  = pairing_no
         self.score       = score
         self.float       = float
-        self.opponents   = copy.copy(opponents)
-        self.colour_hist = copy.copy(colour_hist)
+        self.opponents   = copy(opponents)
+        self.colour_hist = copy(colour_hist)
 
     def __eq__(self, other):
-        return self.surname == other.surname \
+        return (self.surname == other.surname \
             and self.rating == other.rating \
             and self.title == other.title \
             and self.pairing_no == other.pairing_no \
             and self.score == other.score \
             and self.float == other.float \
-            and self.opponents == other.opponents \
-            and self.colour_hist == other.colour_hist
-
-    def __repr__(self):
-        return '{0} {1} {2} {3} {4} {5} {6} {7}' \
-            .format(self.surname, self.rating, self.title,
-                    self.pairing_no, self.score, self.float,
-                    self.opponents, self.colour_hist)
+            and self.opponents == other.opponents) \
+            and self.colour_hist == other.colour_hist \
+            if isinstance(other, PairingCard) else NotImplemented
 
     def pair(self, opponent, colour, float=None):
         self.opponents.append(opponent)
