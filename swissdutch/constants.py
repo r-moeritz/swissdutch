@@ -14,3 +14,10 @@ class Colour(IntEnum):
     none  = 0,
     white = 1,
     black = 2
+
+class FloatStatus(IntEnum):
+    down     = -2,
+    downPrev = -1,
+    none     = 0,
+    upPrev   = 1,
+    up       = 2
