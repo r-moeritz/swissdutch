@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import Enum, IntEnum
 
 class FideTitle(IntEnum):
     WCM = 0
@@ -11,13 +11,24 @@ class FideTitle(IntEnum):
     GM  = 7
 
 class Colour(IntEnum):
-    none  = 0,
-    white = 1,
-    black = 2
+    black = -1
+    none  =  0,
+    white =  1
 
 class FloatStatus(IntEnum):
     down     = -2,
     downPrev = -1,
-    none     = 0,
-    upPrev   = 1,
-    up       = 2
+    none     =  0,
+    upPrev   =  1,
+    up       =  2
+
+class ColourPref(IntEnum):
+    whiteAbs =  2,
+    whiteStr =  1,
+    mild     =  0,
+    blackStr = -1,
+    blackAbs = -2
+
+class BracketType(Enum):
+    Homogenous   = 1,
+    Heteregenous = 2
