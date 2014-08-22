@@ -1,3 +1,4 @@
+import math
 from swissdutch.constants import FloatStatus, Colour, ColourPref, BracketType
 
 class PairingCard:
@@ -64,6 +65,29 @@ class PairingCard:
     def opponents(self):
         return self._opponents
 
+    @property
+    def colour_preference(self):
+        diff = sum(self._colour_hist)
+        return ColourPreference(diff)
+
+    @property
+    def expected_colour(self):
+        col  = Colour.none
+        pref = self.colour_preference
+
+        if pref > 0:
+            col = Colour.white
+        elif pref < 0:
+            col = Colour.black
+        else:
+            last_col = next((c for c in self._colour_hist if c != Colour.none), Colour.none)
+            if last_col == Colour.white:
+                col = Colour.black
+            elif last_col == Colour.black:
+                col = Colour.white
+
+        return col
+
     def pair(self, opponent, colour, float_status=FloatStatus.none):
         self._opponents += (opponent,)
         self._colour_hist += (colour,)
@@ -74,10 +98,6 @@ class PairingCard:
         self._colour_hist += (Colour.none,)
         self._float_status = FloatStatus.down
         self._score += bye_value
-
-    def colour_preference(self):
-        diff = sum(self._colour_hist)
-        return ColourPreference(diff)
 
     def _set_float_status(self, float_status):
         if float_status != FloatStatus.none:
@@ -90,13 +110,42 @@ class PairingCard:
             self._float_status -= 1
 
 class ScoreBracket:
-    def __init__(self, pairing_cards):
+    def __init__(self, score, pairing_cards):
+        self._score         = score
         self._pairing_cards = list(pairing_cards)
 
+    @property
     def type(self):
-        scores = []
-        for __, g in itertools.groupby(self._pairing_cards, key=operator.attrgetter('score')):
-            scores.append(g)
-        return (BracketType.Homogenous
-                if len(scores) < 2 or len(scores) - len(scores[-1]) > len(scores[-1])
-                else BracketType.Heteregenous)
+        num_players = len(self._pairing_cards)
+        return (BracketType.Heteregenous
+                if num_players-self.m0 < num_players/2
+                else BracketType.Homogenous)
+
+    @property
+    def p0(self):
+        return math.floor(len(self._pairing_cards)/2)
+
+    @property
+    def x1(self):
+        white   = 0
+        black   = 0
+        neither = 0
+
+        for k, g in itertools.groupby(self._pairing_cards, key=operator.attrgetter('expected_colour')):
+            if k == Colour.white:
+                white = len(g)
+            elif k == Colour.black:
+                black = len(g)
+            else:
+                neither = len(g)
+
+        if white < black:
+            white += neither
+        else:
+            black += neither
+
+        return math.floor(abs((white - black) / 2))
+
+    @property
+    def m0(self):
+        return sum(p.score > self._score for p in self._pairing_cards)
