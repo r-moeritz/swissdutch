@@ -11,17 +11,17 @@ class DutchPairingEngine(SwissPairingEngine):
     def _pair_round(self):
         score_brackets = self._create_score_brackets()
         
-        ctx = PairingContext(score_brackets)
+        ctx = PairingContext(self._round_no, self._last_round, score_brackets)
         for sb in ctx:
             sb.generate_pairings(ctx)
 
-        return [sb.finalize_pairings() for sb in score_brackets]
+        return list(itertools.chain.from_iterable(sb.finalize_pairings()
+                                                  for sb in score_brackets))
 
     def _create_score_brackets(self):
         self._pairing_cards.sort(key=operator.attrgetter('pairing_no'))
         self._pairing_cards.sort(key=operator.attrgetter('score'), reverse=True)
 
-        score_brackets = []
-        for k, g in itertools.groupby(self._pairing_cards, key=operator.attrgetter('score')):
-            score_brackets.append(ScoreBracket(k, g))
-        return score_brackets
+        return [ScoreBracket(score, pairing_cards)
+                for score, pairing_cards in itertools.groupby(self._pairing_cards, 
+                                                              key=operator.attrgetter('score'))]
