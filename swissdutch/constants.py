@@ -28,7 +28,3 @@ class ColourPref(IntEnum):
     mild     =  0,
     blackStr = -1,
     blackAbs = -2
-
-class BracketType(Enum):
-    Homogenous   = 1,
-    Heteregenous = 2
