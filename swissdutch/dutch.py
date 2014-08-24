@@ -11,7 +11,8 @@ class DutchPairingEngine(SwissPairingEngine):
     def _pair_round(self):
         score_brackets = self._create_score_brackets()
         
-        ctx = PairingContext(self._round_no, self._last_round, score_brackets)
+        ctx = PairingContext(self._round_no, self._last_round, 
+                             self._bye_value, score_brackets)
         for sb in ctx:
             sb.generate_pairings(ctx)
 

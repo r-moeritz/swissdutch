@@ -6,7 +6,7 @@ from swissdutch.pairing import PairingCard
 class Test_DutchPairingEngine(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
-        self.engine = DutchPairingEngine()
+        self.engine  = DutchPairingEngine()
 
     def test_pair_second_round(self):
         input_pairing_cards = (

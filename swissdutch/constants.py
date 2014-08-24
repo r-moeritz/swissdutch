@@ -1,14 +1,14 @@
 from enum import Enum, IntEnum
 
 class FideTitle(IntEnum):
-    WCM = 0
-    WFM = 1
-    CM  = 2
-    WIM = 3
-    FM  = 4
-    WGM = 5
-    IM  = 6
-    GM  = 7
+    WCM = 0x7FFFFFFFFFFFFFF8
+    WFM = 0x7FFFFFFFFFFFFFF9
+    CM  = 0x7FFFFFFFFFFFFFFA
+    WIM = 0x7FFFFFFFFFFFFFFB
+    FM  = 0x7FFFFFFFFFFFFFFC
+    WGM = 0x7FFFFFFFFFFFFFFD
+    IM  = 0x7FFFFFFFFFFFFFFE
+    GM  = 0x7FFFFFFFFFFFFFFF
 
 class Colour(IntEnum):
     black = -1

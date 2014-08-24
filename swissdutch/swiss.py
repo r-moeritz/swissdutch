@@ -37,14 +37,12 @@ class SwissPairingEngine(metaclass=abc.ABCMeta):
         s1          = self._pairing_cards[:k]
         s2          = self._pairing_cards[k:]
         odd_colour  = self._select_top_seed_colour()
-        even_colour = Colour.white if odd_colour == Colour.black else Colour.black
 
         while s1:
             p1       = s1.pop(0)
             p2       = s2.pop(0)
             odd,even = (p1,p2) if p1.pairing_no % 2 else (p2,p1)
-            odd.pair(even.pairing_no, odd_colour)
-            even.pair(odd.pairing_no, even_colour)
+            odd.pair_both(even, odd_colour)
 
         if s2:
             s2[0].bye(self._bye_value)
