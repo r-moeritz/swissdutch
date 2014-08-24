@@ -1,6 +1,5 @@
-import math
-import itertools
 import operator
+import itertools
 from swissdutch.swiss import SwissPairingEngine
 from swissdutch.pairing import ScoreBracket, PairingContext
 
@@ -10,14 +9,12 @@ class DutchPairingEngine(SwissPairingEngine):
 
     def _pair_round(self):
         score_brackets = self._create_score_brackets()
-        
-        ctx = PairingContext(self._round_no, self._last_round, 
-                             self._bye_value, score_brackets)
+        ctx            = PairingContext(self._round_no, self._last_round, 
+                                        self._bye_value, score_brackets)
         for sb in ctx:
             sb.generate_pairings(ctx)
-
-        return list(itertools.chain.from_iterable(sb.finalize_pairings()
-                                                  for sb in score_brackets))
+        
+        return ctx.finalize_pairings()
 
     def _create_score_brackets(self):
         self._pairing_cards.sort(key=operator.attrgetter('pairing_no'))

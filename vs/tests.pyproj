@@ -5,8 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>e8f9140f-7aef-429d-9130-a7d43c366a3f</ProjectGuid>
     <ProjectHome>..\tests</ProjectHome>
-    <StartupFile>
-    </StartupFile>
+    <StartupFile>test_main.py</StartupFile>
     <SearchPath>..\</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -27,6 +26,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="test_dutch.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="test_main.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="test_swiss.py" />

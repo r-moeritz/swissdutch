@@ -23,8 +23,8 @@ class FloatStatus(IntEnum):
     up       =  2
 
 class ColourPref(IntEnum):
-    whiteAbs =  2,
-    whiteStr =  1,
+    whiteAbs = -2,
+    whiteStr = -1,
     mild     =  0,
-    blackStr = -1,
-    blackAbs = -2
+    blackStr =  1,
+    blackAbs =  2
