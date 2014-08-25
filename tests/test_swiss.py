@@ -12,7 +12,7 @@ class Test_SwissPairingEngine(unittest.TestCase):
         self.maxDiff = None
         self.engine = DutchPairingEngine(self.select_top_seed_colour)
 
-    def test_pair_first_round(self):
+    def test_pair_1st_round(self):
         input_pairing_cards = (
             PairingCard(name='Bruno',
                         rating=2500,
