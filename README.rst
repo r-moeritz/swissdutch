@@ -6,7 +6,7 @@ A Python implementation of the Dutch pairing system for Swiss tournaments.
 Usage
 -----
 
-:: python
+.. code:: python
 
     from swissdutch.dutch import DutchPairingEngine
     from swissdutch.constants import FideTitle, Colour, FloatStatus
