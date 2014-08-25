@@ -14,7 +14,7 @@ Usage
 
     engine  = DutchPairingEngine()
     input_cards = (
-            PairingCard(surname='Alice',
+            PairingCard(name='Alice',
                         rating=2500,
                         title=FideTitle.GM,
                         pairing_no=1,
@@ -22,7 +22,7 @@ Usage
                         float_status=FloatStatus.none,
                         opponents=(8,),
                         colour_hist=(Colour.white,)),
-            PairingCard(surname='Bruno',
+            PairingCard(name='Bruno',
                         rating=2500,
                         title=FideTitle.IM,
                         pairing_no=2,
@@ -40,10 +40,10 @@ Status
 Pre-alpha. At this stage the library is not yet usable for a full tournament as
 the following functionality has not yet been implemented. Watch this space!
 
-1. Exchanges
+1. Exchanges (partially implemented)
 2. Backtracking
 3. Lowering requirements
-4. Exceptions for top scorers
+4. Exceptions for top scorers in the last round
 
 License
 -------

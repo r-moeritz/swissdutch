@@ -5,10 +5,10 @@ from copy import copy
 from swissdutch.constants import FloatStatus, Colour, ColourPref
 
 class PairingCard:
-    def __init__(self, surname, rating, title=None, pairing_no=None,
+    def __init__(self, name, rating, title=None, pairing_no=None,
                  score=0, float_status=FloatStatus.none, opponents=(),
                  colour_hist=()):
-        self._surname      = surname
+        self._name         = name
         self._rating       = rating
         self._title        = title
         self._pairing_no   = pairing_no
@@ -18,7 +18,7 @@ class PairingCard:
         self._colour_hist  = colour_hist
 
     def __eq__(self, other):
-        return (self._surname == other.surname
+        return (self._name == other.name
                 and self._rating == other.rating
                 and self._title == other.title
                 and self._pairing_no == other.pairing_no
@@ -30,15 +30,15 @@ class PairingCard:
 
     def __repr__(self):
         return ('sn:{0}, r:{1}, t:{2}, pn:{3}, s:{4}, f:{5}, op:{6}, ch:{7}'
-            .format(self._surname, self._rating, self._title, self._pairing_no,
+            .format(self._name, self._rating, self._title, self._pairing_no,
                     self._score, self._float_status, self._opponents, self._colour_hist))
 
     def __hash__(self):
         return hash(repr(self))
 
     @property
-    def surname(self):
-        return self._surname
+    def name(self):
+        return self._name
 
     @property
     def rating(self):
@@ -74,8 +74,10 @@ class PairingCard:
 
     @property
     def colour_preference(self):
-        diff = sum(self._colour_hist)
-        return ColourPref(diff)
+        cd  = sum(self._colour_hist)
+        cd2 = sum([c for c in self._colour_hist if c != Colour.none][-2:])
+        cp  = max(cd, cd2)
+        return ColourPref(cp)
 
     @property
     def expected_colour(self):
@@ -87,7 +89,7 @@ class PairingCard:
         elif pref < 0:
             col = Colour.white
         else:
-            last_col = next((c for c in self._colour_hist 
+            last_col = next((c for c in reversed(self._colour_hist)
                              if c != Colour.none), Colour.none)
             if last_col == Colour.white:
                 col = Colour.black
@@ -132,12 +134,13 @@ class PairingCard:
 
 class ScoreBracket:
     def __init__(self, score, pairing_cards):
-        self._score         = score
-        self._pairing_cards = list(pairing_cards)
-        self._criteria      = PairingCriteria(self)
-        self._pairings      = []
-        self._unpaired      = None
-        self._bye           = None
+        self._score          = score
+        self._pairing_cards  = list(pairing_cards)
+        self._criteria       = PairingCriteria(self)
+        self._pairings       = []
+        self._unpaired       = None
+        self._bye            = None
+        self._transpositions = None
 
     @property
     def x(self):
@@ -155,6 +158,10 @@ class ScoreBracket:
     def pairing_cards(self):
         return self._pairing_cards
 
+    @property
+    def context(self):
+        return self._context
+
     def generate_pairings(self, ctx):
         self._context = ctx
         step = self._c1()
@@ -168,8 +175,6 @@ class ScoreBracket:
         if self._bye:
             p = self._bye
             p.bye(self._context.bye_value)
-
-        return self._pairing_cards
 
     @property
     def _heterogenous(self):
@@ -321,16 +326,30 @@ class ScoreBracket:
         return step
 
     def _c7(self):
-        if not hasattr(self, '_s2_permutations'):
-            self._s2_permutations = itertools.permutations(self._s2)
-            next(self._s2_permutations) # skip 1st permutation since it's equal to self._s2
+        if not self._transpositions:
+            self._transpositions = itertools.permutations(self._s2)
+            next(self._transpositions) # skip 1st one since it's equal to self._s2
+
+        step = self._c6
 
         try:
-            self._s2 = list(next(self._s2_permutations))
+            self._s2 = list(next(self._transpositions))
         except StopIteration:
-            pass # TODO: No more permutations, where to now?
-        else:
-            return self._c6 # try again
+            self._transpositions = None
+            step                 = self._c8 # no more transpostions so try an exchange
+
+        return step
+
+    def _c8(self):
+        self._s2.sort(key=operator.attrgetter('pairing_no'))
+        self._s2.sort(key=operator.attrgetter('score'), reverse=True)
+
+        self._s1[-1],self._s2[0] = self._s2[0],self._s1[-1]
+
+        # TODO: Terminal condition (i.e. when to stop exchanges)
+        # TODO: Different rules for homogenous & heterogenous brackets
+
+        return self._c5
 
 class PairingCriteria:
     def __init__(self, score_bracket):
@@ -346,9 +365,12 @@ class PairingCriteria:
 
     def b2(self, p1, p2):
         """p1 and p2 are incompatible if they have the same absolute colour preference."""
-        return (abs(p1.colour_preference) != 2 
-                or abs(p2.colour_preference) != 2
-                or p1.colour_preference != p2.colour_preference)
+        odd_round = self._score_bracket.context.round_no%2
+        abs_value = 1 if odd_round else 2 # strong prefs are treated as absolute in odd rounds
+        p1_abs    = abs(p1.colour_preference) >= abs_value
+        p2_abs    = abs(p2.colour_preference) >= abs_value
+
+        return not p1_abs or not p2_abs or p1.colour_preference != p2.colour_preference
 
     def b4(self, pairings):
         """The current pairings are acceptable if they satisfy the minimum number
@@ -429,8 +451,8 @@ class PairingContext:
         next_bracket.pairing_cards.append(pairing_card)
 
     def finalize_pairings(self):
-        return list(itertools.chain.from_iterable(sb.finalize_pairings()
-                                                  for sb in self._score_brackets))
+        for sb in self._score_brackets:
+            sb.finalize_pairings()
 
     @property
     def _index(self):

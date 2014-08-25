@@ -22,7 +22,7 @@ class SwissPairingEngine(metaclass=abc.ABCMeta):
         pass
 
     def _rank_players(self):
-        self._pairing_cards.sort(key=operator.attrgetter('surname'))
+        self._pairing_cards.sort(key=operator.attrgetter('name'))
         self._pairing_cards.sort(key=operator.attrgetter('rating', 'title'),
                                  reverse=True)
 

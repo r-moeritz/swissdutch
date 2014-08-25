@@ -14,7 +14,9 @@ class DutchPairingEngine(SwissPairingEngine):
         for sb in ctx:
             sb.generate_pairings(ctx)
 
-        return ctx.finalize_pairings()
+        ctx.finalize_pairings()
+
+        return self._pairing_cards
 
     def _create_score_brackets(self):
         self._pairing_cards.sort(key=operator.attrgetter('pairing_no'))
