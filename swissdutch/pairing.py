@@ -5,8 +5,9 @@ from copy import copy
 from swissdutch.constants import FloatStatus, Colour, ColourPref
 
 class PairingCard:
-    def __init__(self, surname, rating, title=None, pairing_no=None, 
-                 score=0, float_status=FloatStatus.none, opponents=(), colour_hist=()):
+    def __init__(self, surname, rating, title=None, pairing_no=None,
+                 score=0, float_status=FloatStatus.none, opponents=(),
+                 colour_hist=()):
         self._surname      = surname
         self._rating       = rating
         self._title        = title
@@ -17,15 +18,15 @@ class PairingCard:
         self._colour_hist  = colour_hist
 
     def __eq__(self, other):
-        return (self._surname == other.surname 
-            and self._rating == other.rating
-            and self._title == other.title
-            and self._pairing_no == other.pairing_no
-            and self._score == other.score
-            and self._float_status == other.float_status
-            and self._opponents == other.opponents
-            and self._colour_hist == other.colour_hist
-            if isinstance(other, PairingCard) else NotImplemented)
+        return (self._surname == other.surname
+                and self._rating == other.rating
+                and self._title == other.title
+                and self._pairing_no == other.pairing_no
+                and self._score == other.score
+                and self._float_status == other.float_status
+                and self._opponents == other.opponents
+                and self._colour_hist == other.colour_hist
+                if isinstance(other, PairingCard) else NotImplemented)
 
     def __repr__(self):
         return ('sn:{0}, r:{1}, t:{2}, pn:{3}, s:{4}, f:{5}, op:{6}, ch:{7}'
@@ -224,15 +225,15 @@ class ScoreBracket:
 
     def _assign_colours(self, pair):
         p1, p2 = pair
-        if (abs(p1.colour_preference) > abs(p2.colour_preference)):
+        if abs(p1.colour_preference) > abs(p2.colour_preference):
             p1.pair_both(p2, p1.expected_colour)
-        elif (abs(p1.colour_preference) < abs(p2.colour_preference)):
+        elif abs(p1.colour_preference) < abs(p2.colour_preference):
             p2.pair_both(p1, p2.expected_colour)
-        elif (p1.score > p2.score):
+        elif p1.score > p2.score:
             p1.pair_both(p2, p1.expected_colour)
-        elif (p1.score < p2.score):
+        elif p1.score < p2.score:
             p2.pair_both(p1, p2.expected_colour)
-        elif (p1.pairing_no < p2.pairing_no):
+        elif p1.pairing_no < p2.pairing_no:
             p1.pair_both(p2, p1.expected_colour)
         else:
             p2.pair_both(p1, p2.expected_colour)
@@ -272,6 +273,7 @@ class ScoreBracket:
 
     def _c4(self):
         if self._unpaired: # homogenous remainder bracket
+            self._unpaired.sort(key=operator.attrgetter('pairing_no'))
             self._s1       = self._unpaired[:self._p]
             self._s2       = self._unpaired[self._p:]
             self._unpaired = None # ensure we don't get here again

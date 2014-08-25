@@ -9,11 +9,11 @@ class DutchPairingEngine(SwissPairingEngine):
 
     def _pair_round(self):
         score_brackets = self._create_score_brackets()
-        ctx            = PairingContext(self._round_no, self._last_round, 
+        ctx            = PairingContext(self._round_no, self._last_round,
                                         self._bye_value, score_brackets)
         for sb in ctx:
             sb.generate_pairings(ctx)
-        
+
         return ctx.finalize_pairings()
 
     def _create_score_brackets(self):
@@ -21,5 +21,6 @@ class DutchPairingEngine(SwissPairingEngine):
         self._pairing_cards.sort(key=operator.attrgetter('score'), reverse=True)
 
         return [ScoreBracket(score, pairing_cards)
-                for score, pairing_cards in itertools.groupby(self._pairing_cards, 
-                                                              key=operator.attrgetter('score'))]
+                for score, pairing_cards 
+                in itertools.groupby(self._pairing_cards,
+                                     key=operator.attrgetter('score'))]

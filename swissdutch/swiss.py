@@ -7,14 +7,15 @@ from swissdutch.constants import Colour
 
 class SwissPairingEngine(metaclass=abc.ABCMeta):
     @staticmethod
-    def _select_random_colour(self):
+    def _select_random_colour():
         return random.choice((Colour.white, Colour.black))
 
     @abc.abstractclassmethod
     def __init__(self, top_seed_colour_selection_fn, bye_value):
         self._bye_value = bye_value
         self._select_top_seed_colour = staticmethod(top_seed_colour_selection_fn
-            if top_seed_colour_selection_fn else self._select_random_colour)
+                                                    if top_seed_colour_selection_fn 
+                                                    else self._select_random_colour)
 
     @abc.abstractmethod
     def _pair_round(self):
@@ -34,10 +35,10 @@ class SwissPairingEngine(metaclass=abc.ABCMeta):
         self._rank_players()
         self._assign_pairing_numbers()
 
-        k           = math.floor(len(self._pairing_cards)/2)
-        s1          = self._pairing_cards[:k]
-        s2          = self._pairing_cards[k:]
-        odd_colour  = self._select_top_seed_colour()
+        k          = math.floor(len(self._pairing_cards)/2)
+        s1         = self._pairing_cards[:k]
+        s2         = self._pairing_cards[k:]
+        odd_colour = self._select_top_seed_colour()
 
         while s1:
             p1       = s1.pop(0)
@@ -56,4 +57,4 @@ class SwissPairingEngine(metaclass=abc.ABCMeta):
         self._last_round    = last_round
 
         return (self._pair_first_round()
-            if self._round_no == 1 else self._pair_round())
+                if self._round_no == 1 else self._pair_round())
