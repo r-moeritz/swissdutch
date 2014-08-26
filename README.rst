@@ -40,10 +40,9 @@ Status
 Pre-alpha. At this stage the library is not yet usable since the following
 functionality has not yet been implemented. Watch this space!
 
-1. Exchanges (partially implemented)
-2. Backtracking
-3. Lowering requirements (partially implemented)
-4. Exceptions for top scorers in the last round
+1. Backtracking
+2. Lowering requirements (partially implemented)
+3. Exceptions for top scorers in the last round
 
 License
 -------

@@ -141,6 +141,7 @@ class ScoreBracket:
         self._unpaired       = None
         self._bye            = None
         self._transpositions = None
+        self._exchanges      = None
 
     @property
     def x(self):
@@ -371,12 +372,30 @@ class ScoreBracket:
         self._s2.sort(key=operator.attrgetter('pairing_no'))
         self._s2.sort(key=operator.attrgetter('score'), reverse=True)
 
-        self._s1[-1],self._s2[0] = self._s2[0],self._s1[-1]
+        if not self._exchanges:
+            self._s1.sort(key=operator.attrgetter('pairing_no'), reverse=True)
+            self._s1.sort(key=operator.attrgetter('score'))
 
-        # TODO: Terminal condition (i.e. when to stop exchanges)
-        # TODO: Different rules for homogenous & heterogenous brackets
+            self._exchanges = list(itertools.product(self._s1, self._s2))
+            self._exchanges.sort(key=lambda p: abs(p[0].pairing_no - p[1].pairing_no))
+            self._exchanges.sort(key=lambda p: abs(p[0].score - p[1].score))
 
-        return self._c5
+        step    = self._c5
+        ex_pair = None
+
+        try:
+            ex_pair = self._exchanges.pop(0)
+        except IndexError: # no more exchanges
+            self._exchanges = None
+            step = self._c9
+        else:
+            p1,p2 = ex_pair
+            self._s1.remove(p1)
+            self._s2.append(p1)
+            self._s2.remove(p2)
+            self._s1.append(p2)
+
+        return step
 
     def _c9(self):
         return None # TODO
