@@ -32,7 +32,7 @@ Usage
                    colour_hist=(Colour.black,)),
             # ... further cards omitted for brevity
     )
-    result_players = engine.pair_round(2, input_cards)
+    result_players = engine.pair_round(2, input_players)
 
 Status
 ------
