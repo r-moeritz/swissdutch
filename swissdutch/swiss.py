@@ -22,22 +22,22 @@ class SwissPairingEngine(metaclass=abc.ABCMeta):
         pass
 
     def _rank_players(self):
-        self._pairing_cards.sort(key=operator.attrgetter('name'))
-        self._pairing_cards.sort(key=operator.attrgetter('rating', 'title'),
-                                 reverse=True)
+        self._players.sort(key=operator.attrgetter('name'))
+        self._players.sort(key=operator.attrgetter('rating', 'title'),
+                           reverse=True)
 
     def _assign_pairing_numbers(self):
-        for i in range(len(self._pairing_cards)):
-            p = self._pairing_cards[i]
+        for i in range(len(self._players)):
+            p = self._players[i]
             p.pairing_no = i + 1
 
     def _pair_first_round(self):
         self._rank_players()
         self._assign_pairing_numbers()
 
-        k          = math.floor(len(self._pairing_cards)/2)
-        s1         = self._pairing_cards[:k]
-        s2         = self._pairing_cards[k:]
+        k          = math.floor(len(self._players)/2)
+        s1         = self._players[:k]
+        s2         = self._players[k:]
         odd_colour = self._select_top_seed_colour()
 
         while s1:
@@ -49,12 +49,12 @@ class SwissPairingEngine(metaclass=abc.ABCMeta):
         if s2:
             s2[0].bye(self._bye_value)
 
-        return self._pairing_cards
+        return self._players
 
-    def pair_round(self, round_no, pairing_cards, last_round=False):
-        self._round_no      = round_no
-        self._pairing_cards = [copy.deepcopy(p) for p in pairing_cards]
-        self._last_round    = last_round
+    def pair_round(self, round_no, players, last_round=False):
+        self._round_no   = round_no
+        self._players    = [copy.deepcopy(p) for p in players]
+        self._last_round = last_round
 
         return (self._pair_first_round()
                 if self._round_no == 1 else self._pair_round())

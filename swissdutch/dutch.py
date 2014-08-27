@@ -16,13 +16,13 @@ class DutchPairingEngine(SwissPairingEngine):
 
         ctx.finalize_pairings()
 
-        return self._pairing_cards
+        return self._players
 
     def _create_score_brackets(self):
-        self._pairing_cards.sort(key=operator.attrgetter('pairing_no'))
-        self._pairing_cards.sort(key=operator.attrgetter('score'), reverse=True)
+        self._players.sort(key=operator.attrgetter('pairing_no'))
+        self._players.sort(key=operator.attrgetter('score'), reverse=True)
 
-        return [ScoreBracket(score, pairing_cards)
-                for score, pairing_cards 
-                in itertools.groupby(self._pairing_cards,
+        return [ScoreBracket(score, players)
+                for score, players 
+                in itertools.groupby(self._players,
                                      key=operator.attrgetter('score'))]

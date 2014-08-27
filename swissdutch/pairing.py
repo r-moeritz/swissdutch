@@ -4,7 +4,7 @@ import operator
 from copy import copy
 from swissdutch.constants import FloatStatus, Colour, ColourPref
 
-class PairingCard:
+class Player:
     def __init__(self, name, rating, title=None, pairing_no=None,
                  score=0, float_status=FloatStatus.none, opponents=(),
                  colour_hist=()):
@@ -26,7 +26,7 @@ class PairingCard:
                 and self._float_status == other.float_status
                 and self._opponents == other.opponents
                 and self._colour_hist == other.colour_hist
-                if isinstance(other, PairingCard) else NotImplemented)
+                if isinstance(other, Player) else NotImplemented)
 
     def __repr__(self):
         return ('sn:{0}, r:{1}, t:{2}, pn:{3}, s:{4}, f:{5}, op:{6}, ch:{7}'
@@ -133,15 +133,15 @@ class PairingCard:
             self._float_status -= 1
 
 class ScoreBracket:
-    def __init__(self, score, pairing_cards):
-        self._score          = score
-        self._pairing_cards  = list(pairing_cards)
-        self._criteria       = PairingCriteria(self)
-        self._pairings       = []
-        self._unpaired       = None
-        self._bye            = None
-        self._transpositions = None
-        self._exchanges      = None
+    def __init__(self, score, _players):
+        self._score                = score
+        self._all_players          = list(_players)
+        self._remaining_players    = None
+        self._criteria             = PairingCriteria(self)
+        self._pairings             = []
+        self._bye                  = None
+        self._transpositions       = None
+        self._exchanges            = None
         self._saved_transpositions = None
 
     @property
@@ -155,14 +155,10 @@ class ScoreBracket:
     @property
     def z(self):
         return self._z
-
+    
     @property
-    def pairing_cards(self):
-        return self._unpaired if self._unpaired else self._pairing_cards
-
-    @property
-    def context(self):
-        return self._context
+    def odd_round(self):
+        return self._context.round_no % 2
 
     def generate_pairings(self, ctx):
         self._context = ctx
@@ -178,14 +174,28 @@ class ScoreBracket:
             p = self._bye
             p.bye(self._context.bye_value)
 
+    def add_player(self, p):
+        self._all_players.append(p)
+
+    def remove_player(self, p):
+        self._all_players.remove(p)
+
+    @property
+    def _lsb(self):
+        return self._context.lowest_score_bracket
+
+    @property
+    def _players(self):
+        return self._remaining_players if self._remaining_players else self._all_players
+
     @property
     def _heterogenous(self):
-        return len(self.pairing_cards)/2 >= self._m0 if self._m0 else False
+        return len(self._players)/2 >= self._m0 if self._m0 else False
 
     @property
     def _majority_expected_colour(self):
-        white = sum(p.expected_colour == Colour.white for p in self.pairing_cards)
-        black = sum(p.expected_colour == Colour.black for p in self.pairing_cards)
+        white = sum(p.expected_colour == Colour.white for p in self._players)
+        black = sum(p.expected_colour == Colour.black for p in self._players)
         
         col = Colour.none
         
@@ -198,13 +208,13 @@ class ScoreBracket:
 
     @property
     def _p0(self):
-        return math.floor(len(self.pairing_cards)/2)
+        return math.floor(len(self._players)/2)
 
     @property
     def _x1(self):
-        white   = sum(p.expected_colour == Colour.white for p in self.pairing_cards)
-        black   = sum(p.expected_colour == Colour.black for p in self.pairing_cards)
-        neither = len(self.pairing_cards) - white - black
+        white   = sum(p.expected_colour == Colour.white for p in self._players)
+        black   = sum(p.expected_colour == Colour.black for p in self._players)
+        neither = len(self._players) - white - black
 
         if white < black:
             white += neither
@@ -215,17 +225,17 @@ class ScoreBracket:
 
     @property
     def _m0(self):
-        return sum(p.score > self._score for p in self.pairing_cards)
+        return sum(p.score > self._score for p in self._players)
 
     @property
     def _z1(self):
-        if self._context.round_no % 2:
+        if self.odd_round:
             return self._x1 # only calculate z1 in even rounds
 
         maj_col = self._majority_expected_colour
         num_var = sum(p.colour_preference == ColourPref.mild 
                       and p.expected_colour == maj_col 
-                      for p in self.pairing_cards)
+                      for p in self._players)
         return self._x1 - num_var
 
     def _assign_colours(self, pair):
@@ -244,26 +254,32 @@ class ScoreBracket:
             p2.pair_both(p1, p2.expected_colour)
 
     def _c1(self):
-        pairing_cards = copy(self.pairing_cards)
-        p1            = pairing_cards.pop()
+        all_players_dup = copy(self._all_players)
+        p1              = all_players_dup.pop()
 
         while p1:
             compatible = False
 
-            for p2 in pairing_cards:
+            for p2 in all_players_dup:
                 if self._criteria.b1a(p1, p2) and self._criteria.b2(p1, p2):
                     compatible = True
                     break
 
+            step = None
             if not compatible:
-                # TODO: if player moved down from higher score bracket: apply C12
-                # TODO: elif this score bracket is LSB: apply C13
-                # else:
-                self._context.downfloat(p1)
+                if p1.score > self._score:
+                    step = self._c12
+                elif self._lsb:
+                    step = self._c13
+                else:
+                    self._context.downfloat(p1)
 
-            p1 = pairing_cards.pop() if len(pairing_cards) > 1 else None
+            p1 = all_players_dup.pop() if len(all_players_dup) > 1 else None
 
-        return self._c2 if len(self.pairing_cards) else None
+        if len(self._all_players):
+            step = self._c2
+
+        return step
 
     def _c2(self):
         self._p1 = self._p0
@@ -279,7 +295,7 @@ class ScoreBracket:
         return self._c3c
 
     def _c3c(self):
-        # TODO: Reset A7.d (semi-absolute colour pref)
+        self._criteria.a7d_enabled = True
         return self._c3d
 
     def _c3d(self):
@@ -288,28 +304,27 @@ class ScoreBracket:
         return self._c3e
 
     def _c3e(self):
-        self._criteria.b5_for_downfloaters = True
+        self._criteria.b5_enabled_for_downfloaters = True
         return self._c3f
 
     def _c3f(self):
-        self._criteria.b6_for_downfloaters = True
+        self._criteria.b6_enabled_for_downfloaters = True
         return self._c3g
 
     def _c3g(self):
-        self._criteria.b5_for_upfloaters = True
+        self._criteria.b5_enabled_for_upfloaters = True
         return self._c3h
 
     def _c3h(self):
-        self._criteria.b6_for_upfloaters = True
+        self._criteria.b6_enabled_for_upfloaters = True
         return self._c4
 
     def _c4(self):
-        # Sort again in case we received downfloaters
-        self.pairing_cards.sort(key=operator.attrgetter('pairing_no'))
-        self.pairing_cards.sort(key=operator.attrgetter('score'), reverse=True)
+        self._players.sort(key=operator.attrgetter('pairing_no'))
+        self._players.sort(key=operator.attrgetter('score'), reverse=True)
 
-        self._s1 = self.pairing_cards[:self._p]
-        self._s2 = self.pairing_cards[self._p:]
+        self._s1 = self._players[:self._p]
+        self._s2 = self._players[self._p:]
 
         return self._c5
 
@@ -325,7 +340,7 @@ class ScoreBracket:
     def _c6(self):
         pairings    = [(self._s1[i], self._s2[i]) for i in range(len(self._s1))]
         unpaired    = list(set(self._s1 + self._s2) - set(sum(pairings, ())))
-        bye         = unpaired[0] if len(unpaired) == 1 and self._context.lowest_score_bracket else None
+        bye         = unpaired[0] if len(unpaired) == 1 and self._lsb else None
         downfloater = unpaired[0] if not(bye) and len(unpaired) == 1 else None
 
         step = None
@@ -336,12 +351,12 @@ class ScoreBracket:
             if len(unpaired) > 1:
                 # Pair homogenous remainder
                 self._saved_transpositions = self._transpositions
-                self._transpositions = None
-                self._exchanges = None
-                self._unpaired = unpaired
-                self._p = self._p1 - self._m1
-                self._x = self._x1
-                step = self._c4
+                self._transpositions       = None
+                self._exchanges            = None
+                self._remaining_players    = unpaired
+                self._p                    = self._p1 - self._m1
+                self._x                    = self._x1
+                step                       = self._c4
             elif downfloater:
                 self._context.downfloat(downfloater)
         else:
@@ -382,9 +397,9 @@ class ScoreBracket:
         try:
             ex_pair = self._exchanges.pop(0)
         except IndexError: # no more exchanges
-            self._exchanges = None
-            self._unpaired  = None
-            step = self._c9 if self._heterogenous else self._c10a
+            self._exchanges         = None
+            self._remaining_players = None
+            step                    = self._c9 if self._heterogenous else self._c10a
         else:
             p1,p2 = ex_pair
             self._s1.remove(p1)
@@ -395,65 +410,90 @@ class ScoreBracket:
         return step
 
     def _c9(self):
-        self._pairings = []
+        self._pairings       = []
         self._transpositions = self._saved_transpositions
-        self._s1       = self.pairing_cards[:self._p]
-        self._s2       = self.pairing_cards[self._p:]
-        self._p        = self._p1
-        self._x        = self._x1
+        self._s1             = self._players[:self._p]
+        self._s2             = self._players[self._p:]
+        self._p              = self._p1
+        self._x              = self._x1
         return self._c7
 
     def _c10a(self):
         step = self._c4
-        if not self._criteria.b6_for_upfloaters:
+        if not self._criteria.b6_enabled_for_upfloaters:
             step = self._c10b
-        self._criteria.b6_for_upfloaters = False
+        self._criteria.b6_enabled_for_upfloaters = False
         return step
 
     def _c10b(self):
         step = self._c3h
-        if not self._criteria.b5_for_upfloaters:
+        if not self._criteria.b5_enabled_for_upfloaters:
             step = self._c10c
-        self._criteria.b5_for_upfloaters = False
+        self._criteria.b5_enabled_for_upfloaters = False
         return step
 
     def _c10c(self):
         step = self._c3g
-        if not self._criteria.b6_for_downfloaters:
+        if not self._criteria.b6_enabled_for_downfloaters:
             step = self._c10d
-        self._criteria.b6_for_downfloaters = False
+        self._criteria.b6_enabled_for_downfloaters = False
         return step
 
     def _c10d(self):
         step = self._c3f
-        if not self._criteria.b5_for_downfloaters:
+        if not self._criteria.b5_enabled_for_downfloaters:
             step = self._c10e
-        self._criteria.b5_for_downfloaters = False
+        self._criteria.b5_enabled_for_downfloaters = False
         return step
 
     def _c10e(self):
+        if self.odd_round:
+            if self._x < self._p1:
+                self._x += 1
+        else:
+            if self._z < self._x:
+                self._z += 1
+            elif self._z == self._x and self._x < self._p1:
+                self._x += 1
+                self._z = self._z1
+        return self._c3e
+
+    def _c10f(self):
+        if self.odd_round:
+            self._criteria.a7d_enabled = False
+        return self._c3d
+
+    def _c10g(self):
+        # TODO if top-scorer: drop B2
+        return self._c3c
+
+    def _c12(self):
+        return None # TODO
+
+    def _c13(self):
         return None # TODO
 
 class PairingCriteria:
     def __init__(self, score_bracket):
-        self._score_bracket      = score_bracket
-        self.b5_for_downfloaters = True
-        self.b5_for_upfloaters   = True
-        self.b6_for_downfloaters = True
-        self.b6_for_upfloaters   = True
+        self._score_bracket              = score_bracket
+        self.b5_enabled_for_downfloaters = True
+        self.b5_enabled_for_upfloaters   = True
+        self.b6_enabled_for_downfloaters = True
+        self.b6_enabled_for_upfloaters   = True
+        self.a7d_enabled                 = True
+        self.b2_enabled_for_top_scorers  = True
 
     def b1a(self, p1, p2):
         """p1 and p2 may not be paired if they have met before."""
         return p2.pairing_no not in p1.opponents
 
-    def b1b(self, p):
-        """p may not receive a bye if they received a bye in the previous round."""
-        return p.opponents[-1]
+    def b1b(self, player):
+        """player may not receive a bye if they received a bye in the previous round."""
+        return player.opponents[-1]
 
     def b2(self, p1, p2):
         """p1 and p2 are incompatible if they have the same absolute colour preference."""
-        odd_round = self._score_bracket.context.round_no%2
-        abs_value = 1 if odd_round else 2 # strong prefs are treated as absolute in odd rounds
+        abs_value = 1 if self._score_bracket.odd_round and self.a7d_enabled else 2
         p1_abs    = abs(p1.colour_preference) >= abs_value
         p2_abs    = abs(p2.colour_preference) >= abs_value
 
@@ -468,25 +508,25 @@ class PairingCriteria:
     def b5(self, p1, p2=None):
         """No player shall receive an identical float in two consecutive rounds."""
         t1 = (p1.float_status != FloatStatus.down
-              if not(p2) and self.b5_for_downfloaters else True)
+              if not(p2) and self.b5_enabled_for_downfloaters else True)
         t2 = ((p1.score == p2.score
               or (p1.score < p2.score
                   and p1.float_status != FloatStatus.up)
               or (p1.score > p2.score
                   and p2.float_status != FloatStatus.up))
-              if p2 and self.b5_for_upfloaters else True)
+              if p2 and self.b5_enabled_for_upfloaters else True)
         return t1 and t2
 
     def b6(self, p1, p2=None):
         """No player shall receive an identical float as two rounds before."""
         t1 = (p1.float_status != FloatStatus.downPrev
-              if not(p2) and self.b6_for_downfloaters else True)
+              if not(p2) and self.b6_enabled_for_downfloaters else True)
         t2 = ((p1.score == p2.score
               or (p1.score < p2.score
                   and p1.float_status != FloatStatus.upPrev)
               or (p1.score > p2.score
                   and p2.float_status != FloatStatus.upPrev))
-              if p2 and self.b6_for_upfloaters else True)
+              if p2 and self.b6_enabled_for_upfloaters else True)
         return t1 and t2
 
     def satisfied(self, pairings, downfloater, bye):
@@ -532,12 +572,12 @@ class PairingContext:
     def lowest_score_bracket(self):
         return self._index == len(self._score_brackets) - 1
 
-    def downfloat(self, pairing_card):
+    def downfloat(self, player):
         curr_bracket = self._score_brackets[self._index]
         next_bracket = self._score_brackets[self._index + 1]
 
-        curr_bracket.pairing_cards.remove(pairing_card)
-        next_bracket.pairing_cards.append(pairing_card)
+        curr_bracket.remove_player(player)
+        next_bracket.add_player(player)
 
     def finalize_pairings(self):
         for sb in self._score_brackets:

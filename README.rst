@@ -10,29 +10,29 @@ Usage
 
     from swissdutch.dutch import DutchPairingEngine
     from swissdutch.constants import FideTitle, Colour, FloatStatus
-    from swissdutch.pairing import PairingCard
+    from swissdutch.pairing import Player
 
     engine  = DutchPairingEngine()
-    input_cards = (
-            PairingCard(name='Alice',
-                        rating=2500,
-                        title=FideTitle.GM,
-                        pairing_no=1,
-                        score=1,
-                        float_status=FloatStatus.none,
-                        opponents=(8,),
-                        colour_hist=(Colour.white,)),
-            PairingCard(name='Bruno',
-                        rating=2500,
-                        title=FideTitle.IM,
-                        pairing_no=2,
-                        score=1,
-                        float_status=FloatStatus.none,
-                        opponents=(9,),
-                        colour_hist=(Colour.black,)),
+    input_players = (
+            Player(name='Alice',
+                   rating=2500,
+                   title=FideTitle.GM,
+                   pairing_no=1,
+                   score=1,
+                   float_status=FloatStatus.none,
+                   opponents=(8,),
+                   colour_hist=(Colour.white,)),
+            Player(name='Bruno',
+                   rating=2500,
+                   title=FideTitle.IM,
+                   pairing_no=2,
+                   score=1,
+                   float_status=FloatStatus.none,
+                   opponents=(9,),
+                   colour_hist=(Colour.black,)),
             # ... further cards omitted for brevity
     )
-    result_cards = engine.pair_round(2, input_cards)
+    result_players = engine.pair_round(2, input_cards)
 
 Status
 ------
