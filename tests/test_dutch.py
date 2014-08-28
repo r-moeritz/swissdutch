@@ -8,6 +8,7 @@ class Test_DutchPairingEngine(unittest.TestCase):
         self.maxDiff = None
         self.engine  = DutchPairingEngine()
 
+    #@unittest.skip
     def test_pair_2nd_round(self):
         input_players = (
             Player(name='Alice',
@@ -225,6 +226,7 @@ class Test_DutchPairingEngine(unittest.TestCase):
         result_players = self.engine.pair_round(2, input_players)
         self.assertCountEqual(result_players, expected_players)
 
+    #@unittest.skip
     def test_pair_3rd_round(self):
         input_players = (
             Player(name='Alice',
@@ -458,6 +460,7 @@ class Test_DutchPairingEngine(unittest.TestCase):
         result_players = self.engine.pair_round(3, input_players)
         self.assertCountEqual(result_players, expected_players)
 
+    #@unittest.skip
     def test_pair_4th_round(self):
         input_players = (
             Player(name='Alice',

@@ -40,9 +40,8 @@ Status
 Pre-alpha. At this stage the library is not yet usable since the following
 functionality has not yet been implemented. Watch this space!
 
-1. Backtracking
-2. Lowering requirements (partially implemented)
-3. Exceptions for top scorers in the last round
+- **C.13**: Rules for LSB
+- **C.14**: Merge current score bracket into the next one
 
 License
 -------

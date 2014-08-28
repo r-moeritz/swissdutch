@@ -143,6 +143,8 @@ class ScoreBracket:
         self._transpositions       = None
         self._exchanges            = None
         self._saved_transpositions = None
+        self._disallowed_floaters  = []
+        self._incompatible_player  = None
 
     @property
     def x(self):
@@ -160,6 +162,14 @@ class ScoreBracket:
     def odd_round(self):
         return self._context.round_no % 2
 
+    @property
+    def last_round(self):
+        return self._context.last_round
+
+    @property
+    def round_no(self):
+        return self._context.round_no
+
     def generate_pairings(self, ctx):
         self._context = ctx
         step = self._c1()
@@ -174,11 +184,18 @@ class ScoreBracket:
             p = self._bye
             p.bye(self._context.bye_value)
 
-    def add_player(self, p):
-        self._all_players.append(p)
+    def add_player(self, player):
+        self._all_players.append(player)
 
-    def remove_player(self, p):
-        self._all_players.remove(p)
+    def remove_player(self, player):
+        self._all_players.remove(player)
+
+    def can_backtrack(self, player):
+        return player != self._incompatible_player
+
+    def backtrack(self, player):
+        self._all_players.append(player)
+        self._disallowed_floaters.append(player)
 
     @property
     def _lsb(self):
@@ -190,7 +207,7 @@ class ScoreBracket:
 
     @property
     def _heterogenous(self):
-        return len(self._players)/2 >= self._m0 if self._m0 else False
+        return len(self._players)/2 >= self._m1 if self._m1 else False
 
     @property
     def _majority_expected_colour(self):
@@ -211,7 +228,10 @@ class ScoreBracket:
         return math.floor(len(self._players)/2)
 
     @property
-    def _x1(self):
+    def _m0(self):
+        return sum(p.score > self._score for p in self._players)
+    
+    def _calculate_x1(self):
         white   = sum(p.expected_colour == Colour.white for p in self._players)
         black   = sum(p.expected_colour == Colour.black for p in self._players)
         neither = len(self._players) - white - black
@@ -223,12 +243,7 @@ class ScoreBracket:
 
         return math.floor(abs((white - black) / 2))
 
-    @property
-    def _m0(self):
-        return sum(p.score > self._score for p in self._players)
-
-    @property
-    def _z1(self):
+    def _calculate_z1(self):
         if self.odd_round:
             return self._x1 # only calculate z1 in even rounds
 
@@ -254,36 +269,47 @@ class ScoreBracket:
             p2.pair_both(p1, p2.expected_colour)
 
     def _c1(self):
-        all_players_dup = copy(self._all_players)
-        p1              = all_players_dup.pop()
+        player_list = copy(self._players)
+        p1          = player_list.pop()
 
+        step = self._c2a
         while p1:
             compatible = False
 
-            for p2 in all_players_dup:
-                if self._criteria.b1a(p1, p2) and self._criteria.b2(p1, p2):
-                    compatible = True
-                    break
+            if player_list:
+                for p2 in player_list:
+                    if self._criteria.b1a(p1, p2) and self._criteria.b2(p1, p2):
+                        compatible = True
+                        break
+            elif len(self._players) > 1:
+                compatible = True
 
-            step = None
             if not compatible:
+                self._incompatible_player = p1
                 if p1.score > self._score:
                     step = self._c12
+                    break
                 elif self._lsb:
                     step = self._c13
-                else:
+                    break
+                elif p1 not in self._disallowed_floaters:
                     self._context.downfloat(p1)
 
-            p1 = all_players_dup.pop() if len(all_players_dup) > 1 else None
+            p1 = player_list.pop() if len(player_list) else None
 
-        if len(self._all_players):
-            step = self._c2
+        if not len(self._players):
+            step = None
 
         return step
 
-    def _c2(self):
+    def _c2a(self):
         self._p1 = self._p0
         self._m1 = self._m0
+        return self._c2b
+
+    def _c2b(self):
+        self._x1 = self._calculate_x1()
+        self._z1 = self._calculate_z1()
         return self._c3a
 
     def _c3a(self):
@@ -291,7 +317,7 @@ class ScoreBracket:
         return self._c3b
 
     def _c3b(self):
-        # TODO: Reset B2 for top scorers
+        self._criteria.b2_enabled_for_top_scorers = True
         return self._c3c
 
     def _c3c(self):
@@ -358,7 +384,10 @@ class ScoreBracket:
                 self._x                    = self._x1
                 step                       = self._c4
             elif downfloater:
-                self._context.downfloat(downfloater)
+                if downfloater in self._disallowed_floaters:
+                    step = self._c7 # try to find a different floater
+                else:
+                    self._context.downfloat(downfloater)
         else:
             step = self._c7
 
@@ -380,6 +409,10 @@ class ScoreBracket:
         return step
 
     def _c8(self):
+        # TODO: Current process is broken. We need to first exhaust all
+        # possible exchanges of one player before trying all possible
+        # exchanges of two players, and so on, up to m1 players.
+
         self._s2.sort(key=operator.attrgetter('pairing_no'))
         self._s2.sort(key=operator.attrgetter('score'), reverse=True)
 
@@ -464,14 +497,53 @@ class ScoreBracket:
         return self._c3d
 
     def _c10g(self):
-        # TODO if top-scorer: drop B2
+        if self.last_round:
+            self._criteria.b2_enabled_for_top_scorers = False
         return self._c3c
 
     def _c12(self):
-        return None # TODO
+        step = None
+        
+        p = self._incompatible_player
+        if self._context.can_backtrack(p):
+            self._context.backtrack(p)
+        elif self._lsb:
+            step = self._c13
+        else:
+            step = self._c14
+
+        return step
 
     def _c13(self):
         return None # TODO
+
+    def _c14(self):
+        step = self._c3a
+
+        if self._heterogenous:
+            if self._saved_transpositions:
+                # We've managed to pair the floaters before
+                self._p1 -= 1
+                self._x1 -= 1 if self._x1 > 0 else 0
+                self._z1 -= 1 if not self.odd_round and self._z1 > 0 else 0
+            else:
+                if self._m1 > 1:
+                    self._m1 -= 1
+                    step = self._c3a
+                elif self._m1 == 1:
+                    self._m1 = 0
+                    self._p1 = self._p0
+                    step = self._c2b
+        else:
+            if self._p1 == 0:
+                step = None
+                pass # TODO: Merge entire score bracket into next one
+            else:
+                self._p1 -= 1
+                self._x1 -= 1 if self._x1 > 0 else 0
+                self._z1 -= 1 if not self.odd_round and self._z1 > 0 else 0
+
+        return step
 
 class PairingCriteria:
     def __init__(self, score_bracket):
@@ -497,7 +569,10 @@ class PairingCriteria:
         p1_abs    = abs(p1.colour_preference) >= abs_value
         p2_abs    = abs(p2.colour_preference) >= abs_value
 
-        return not p1_abs or not p2_abs or p1.colour_preference != p2.colour_preference
+        half_max_score = self._score_bracket.round_no/2
+        return (not(p1_abs) or not(p2_abs) or p1.colour_preference != p2.colour_preference
+                or (self._score_bracket.last_round and not(self.b2_enabled_for_top_scorers)
+                    and (p1.score > half_max_score or p2.score > half_max_score)))
 
     def b4(self, pairings):
         """The current pairings are acceptable if they satisfy the minimum number
@@ -573,15 +648,32 @@ class PairingContext:
         return self._index == len(self._score_brackets) - 1
 
     def downfloat(self, player):
-        curr_bracket = self._score_brackets[self._index]
-        next_bracket = self._score_brackets[self._index + 1]
+        self._current_score_bracket.remove_player(player)
+        self._next_score_bracket.add_player(player)
 
-        curr_bracket.remove_player(player)
-        next_bracket.add_player(player)
+    def can_backtrack(self, player):
+        return self._previous_score_bracket.can_backtrack(player)
+
+    def backtrack(self, player):
+        self._current_score_bracket.remove_player(player)
+        self._previous_score_bracket.backtrack(player)
+        self._ix -= 1
 
     def finalize_pairings(self):
         for sb in self._score_brackets:
             sb.finalize_pairings()
+
+    @property
+    def _current_score_bracket(self):
+        return self._score_brackets[self._index]
+
+    @property 
+    def _previous_score_bracket(self):
+        return self._score_brackets[self._index-1] 
+
+    @property
+    def _next_score_bracket(self):
+        return self._score_brackets[self._index+1]
 
     @property
     def _index(self):
