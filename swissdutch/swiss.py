@@ -53,7 +53,7 @@ class SwissPairingEngine(metaclass=abc.ABCMeta):
 
     def pair_round(self, round_no, players, last_round=False):
         self._round_no   = round_no
-        self._players    = [copy.deepcopy(p) for p in players]
+        self._players    = list(copy.deepcopy(players))
         self._last_round = last_round
 
         return (self._pair_first_round()

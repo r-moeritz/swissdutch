@@ -134,17 +134,18 @@ class Player:
 
 class ScoreBracket:
     def __init__(self, score, _players):
-        self._score                = score
-        self._all_players          = list(_players)
-        self._remaining_players    = None
-        self._criteria             = PairingCriteria(self)
-        self._pairings             = []
-        self._bye                  = None
-        self._transpositions       = None
-        self._exchanges            = None
-        self._saved_transpositions = None
-        self._disallowed_floaters  = []
-        self._incompatible_player  = None
+        self._score                   = score
+        self._all_players             = list(_players)
+        self._remaining_players       = None
+        self._criteria                = PairingCriteria(self)
+        self._pairings                = []
+        self._bye                     = None
+        self._transpositions          = None
+        self._exchanges               = None
+        self._exchange_length         = 1
+        self._saved_transpositions    = None
+        self._disallowed_floaters     = []
+        self._incompatible_player     = None
 
     @property
     def x(self):
@@ -408,37 +409,79 @@ class ScoreBracket:
 
         return step
 
-    def _c8(self):
-        # TODO: Current process is broken. We need to first exhaust all
-        # possible exchanges of one player before trying all possible
-        # exchanges of two players, and so on, up to m1 players.
+    @staticmethod
+    def _generate_exchanges(s1, s2, n):
+        s1_subsets = sorted(itertools.combinations(s1, r=n),
+                            key=lambda players: sum(p.pairing_no for p in players),
+                            reverse=True)
+        s1_subsets.sort(key=lambda players: sum(p.score for p in players), 
+                        reverse=True)
+        s2_subsets = sorted(itertools.combinations(s2, r=n),
+                            key=lambda players: sum(p.pairing_no for p in players))
+        s2_subsets.sort(key=lambda players: sum(p.score for p in players))
+        end_s1_subsets = len(s1_subsets) - 1
+        end_s2_subsets = len(s2_subsets) - 1
 
-        self._s2.sort(key=operator.attrgetter('pairing_no'))
-        self._s2.sort(key=operator.attrgetter('score'), reverse=True)
+        diff = lambda s1sub, s2sub: abs(sum(p.score for p in s1sub) - sum(p.score for p in s2sub))
+        min_diff = diff(s1_subsets[0], s2_subsets[0])
+        max_diff = diff(s1_subsets[-1], s2_subsets[-1])
+
+        delta = min_diff
+        i = 0
+        k = 0
+        exchanges = []
+
+        while delta <= max_diff:
+            if delta == diff(s1_subsets[i], s2_subsets[k]):
+                exchanges.append( (s1_subsets[i], s2_subsets[k]) )
+            if k < end_s2_subsets:
+                k += 1
+                continue
+            if i < end_s1_subsets:
+                i += 1
+                k = 0
+                continue
+            delta += 1
+            i = 0
+            k = 0
+
+        return exchanges
+
+    def _c8(self):
+        step    = self._c5
 
         if self._exchanges == None:
             self._s1.sort(key=operator.attrgetter('pairing_no'), reverse=True)
             self._s1.sort(key=operator.attrgetter('score'))
 
-            self._exchanges = list(itertools.product(self._s1, self._s2))
-            self._exchanges.sort(key=lambda p: abs(p[0].pairing_no - p[1].pairing_no))
-            self._exchanges.sort(key=lambda p: abs(p[0].score - p[1].score))
+            self._s2.sort(key=operator.attrgetter('pairing_no'))
+            self._s2.sort(key=operator.attrgetter('score'), reverse=True)
 
-        step    = self._c5
-        ex_pair = None
+            self._exchanges = self._generate_exchanges(self._s1, self._s2,
+                                                       self._exchange_length)
+        
+        exchange = None
 
         try:
-            ex_pair = self._exchanges.pop(0)
-        except IndexError: # no more exchanges
-            self._exchanges         = None
-            self._remaining_players = None
-            step                    = self._c9 if self._heterogenous else self._c10a
+            exchange = self._exchanges.pop(0)
+        except IndexError: # no more exchanges (for this subset)
+            self._exchanges = None
+            self._exchange_length += 1
+
+            if self._exchange_length > self._p1:
+                # We've exhausted all possible exchanges
+                self._remaining_players = None
+                step = self._c9 if self._heterogenous else self._c10a
+            else:
+                step = self._c8 # generate another set of exchanges
         else:
-            p1,p2 = ex_pair
-            self._s1.remove(p1)
-            self._s2.append(p1)
-            self._s2.remove(p2)
-            self._s1.append(p2)
+            s1_subset, s2_subset = exchange
+            for player in s1_subset:
+                self._s1.remove(player)
+                self._s2.append(player)
+            for player in s2_subset:
+                self._s2.remove(player)
+                self._s1.append(player)
 
         return step
 
