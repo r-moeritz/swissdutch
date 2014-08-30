@@ -37,11 +37,9 @@ Usage
 Status
 ------
 
-Pre-alpha. At this stage the library is not yet usable since the following
-functionality has not yet been implemented. Watch this space!
-
-- **C.13**: Rules for LSB
-- **C.14**: Merge current score bracket into the next one
+Alpha. All the rules of the Dutch system have been implemented except for
+**D.4** which specifies the correct procedure to obtain the best pairings in
+homogenous remainder brackes. See issue #1. I hope to implement this soon.
 
 License
 -------

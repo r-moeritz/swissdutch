@@ -133,9 +133,9 @@ class Player:
             self._float_status -= 1
 
 class ScoreBracket:
-    def __init__(self, score, _players):
+    def __init__(self, score, players):
         self._score                   = score
-        self._all_players             = list(_players)
+        self._all_players             = list(players)
         self._remaining_players       = None
         self._criteria                = PairingCriteria(self)
         self._pairings                = []
@@ -144,8 +144,12 @@ class ScoreBracket:
         self._exchanges               = None
         self._exchange_length         = 1
         self._saved_transpositions    = None
-        self._disallowed_floaters     = []
         self._incompatible_player     = None
+        self._paired_floaters         = False
+
+    @property
+    def all_players(self):
+        return self._all_players
 
     @property
     def x(self):
@@ -195,8 +199,8 @@ class ScoreBracket:
         return player != self._incompatible_player
 
     def backtrack(self, player):
+        self._reset()
         self._all_players.append(player)
-        self._disallowed_floaters.append(player)
 
     @property
     def _lsb(self):
@@ -208,7 +212,8 @@ class ScoreBracket:
 
     @property
     def _heterogenous(self):
-        return len(self._players)/2 >= self._m1 if self._m1 else False
+        return (any(p.score > self._score for p in self._players)
+                and sum(p.score > self._score for p in self._players) / len(self._players) < 0.5)
 
     @property
     def _majority_expected_colour(self):
@@ -232,6 +237,14 @@ class ScoreBracket:
     def _m0(self):
         return sum(p.score > self._score for p in self._players)
     
+    def _reset(self):
+        self._remaining_players       = None
+        self._pairings                = []
+        self._bye                     = None
+        self._exchanges               = None
+        self._exchange_length         = 1
+        self._incompatible_player     = None
+
     def _calculate_x1(self):
         white   = sum(p.expected_colour == Colour.white for p in self._players)
         black   = sum(p.expected_colour == Colour.black for p in self._players)
@@ -270,33 +283,34 @@ class ScoreBracket:
             p2.pair_both(p1, p2.expected_colour)
 
     def _c1(self):
-        player_list = copy(self._players)
-        p1          = player_list.pop()
-
         step = self._c2a
-        while p1:
+
+        for p1 in self._players:
             compatible = False
 
-            if player_list:
-                for p2 in player_list:
-                    if self._criteria.b1a(p1, p2) and self._criteria.b2(p1, p2):
-                        compatible = True
-                        break
-            elif len(self._players) > 1:
-                compatible = True
+            other_players = copy(self._players)
+            other_players.remove(p1)
+
+            for p2 in other_players:
+                if self._criteria.b1a(p1, p2) and self._criteria.b2(p1, p2):
+                    compatible = True
+                    break
 
             if not compatible:
-                self._incompatible_player = p1
-                if p1.score > self._score:
-                    step = self._c12
+                player = p1
+                if len(other_players) == 1:
+                    player = p1 if p1.score >= p2.score else p2
+                self._incompatible_player = player
+
+                if player.score > self._score:
+                    step = self._c13 if self._lsb else self._c12
                     break
                 elif self._lsb:
                     step = self._c13
                     break
-                elif p1 not in self._disallowed_floaters:
-                    self._context.downfloat(p1)
-
-            p1 = player_list.pop() if len(player_list) else None
+                elif self._context.can_downfloat(player):
+                    self._context.downfloat(player)
+                    self._incompatible_player = None
 
         if not len(self._players):
             step = None
@@ -372,23 +386,35 @@ class ScoreBracket:
 
         step = None
         if self._criteria.satisfied(pairings, downfloater, bye):
-            self._pairings += pairings
-            self._bye       = bye
-
-            if len(unpaired) > 1:
-                # Pair homogenous remainder
-                self._saved_transpositions = self._transpositions
-                self._transpositions       = None
-                self._exchanges            = None
-                self._remaining_players    = unpaired
-                self._p                    = self._p1 - self._m1
-                self._x                    = self._x1
-                step                       = self._c4
-            elif downfloater:
-                if downfloater in self._disallowed_floaters:
-                    step = self._c7 # try to find a different floater
-                else:
+            if downfloater:
+                if self._context.can_downfloat(downfloater):
+                    self._pairings += pairings
                     self._context.downfloat(downfloater)
+                else:
+                    possible_floaters = sum(self._criteria.b5(p) 
+                                            and self._criteria.b6(p) 
+                                            and self._context.can_downfloat(p)
+                                            for p in self._players)
+                    if possible_floaters:
+                        step = self._c7 # try to find a different floater
+                    else:
+                        # Force this floater down anyway & let the next score
+                        # bracket deal with it.
+                        self._context.downfloat(downfloater)
+            else:
+                self._pairings += pairings
+                self._bye       = bye
+
+                if len(unpaired) > 1:
+                    # Pair homogenous remainder
+                    self._paired_floaters      = True
+                    self._saved_transpositions = self._transpositions
+                    self._transpositions       = None
+                    self._exchanges            = None
+                    self._remaining_players    = unpaired
+                    self._p                    = self._p1 - self._m1
+                    self._x                    = self._x1
+                    step                       = self._c4
         else:
             step = self._c7
 
@@ -464,12 +490,13 @@ class ScoreBracket:
 
         try:
             exchange = self._exchanges.pop(0)
-        except IndexError: # no more exchanges (for this subset)
+        except IndexError: # no more exchanges (for this subset size)
             self._exchanges = None
             self._exchange_length += 1
 
-            if self._exchange_length > self._p1:
+            if self._exchange_length > self._p:
                 # We've exhausted all possible exchanges
+                self._exchange_length = 1
                 self._remaining_players = None
                 step = self._c9 if self._heterogenous else self._c10a
             else:
@@ -486,12 +513,12 @@ class ScoreBracket:
         return step
 
     def _c9(self):
-        self._pairings       = []
-        self._transpositions = self._saved_transpositions
-        self._s1             = self._players[:self._p]
-        self._s2             = self._players[self._p:]
-        self._p              = self._p1
-        self._x              = self._x1
+        self._pairings          = []
+        self._transpositions    = self._saved_transpositions
+        self._s1                = self._players[:self._p]
+        self._s2                = self._players[self._p:]
+        self._p                 = self._p1
+        self._x                 = self._x1
         return self._c7
 
     def _c10a(self):
@@ -547,44 +574,62 @@ class ScoreBracket:
     def _c12(self):
         step = None
         
-        p = self._incompatible_player
-        if self._context.can_backtrack(p):
-            self._context.backtrack(p)
-        elif self._lsb:
-            step = self._c13
+        player = self._incompatible_player
+        if self._context.can_backtrack(player):
+            self._context.backtrack(player)
+            self._incompatible_player = None
+        elif self._heterogenous:
+            step = self._c14b
         else:
-            step = self._c14
+            step = self._c14a
 
         return step
 
     def _c13(self):
-        return None # TODO
-
-    def _c14(self):
-        step = self._c3a
+        step = None
 
         if self._heterogenous:
-            if self._saved_transpositions:
-                # We've managed to pair the floaters before
-                self._p1 -= 1
-                self._x1 -= 1 if self._x1 > 0 else 0
-                self._z1 -= 1 if not self.odd_round and self._z1 > 0 else 0
-            else:
-                if self._m1 > 1:
-                    self._m1 -= 1
-                    step = self._c3a
-                elif self._m1 == 1:
-                    self._m1 = 0
-                    self._p1 = self._p0
-                    step = self._c2b
+            step = self._c14b
         else:
-            if self._p1 == 0:
-                step = None
-                pass # TODO: Merge entire score bracket into next one
+            player = self._incompatible_player
+            if self._context.can_backtrack(player):
+                self._context.backtrack(player)
+                self._incompatible_player = None
             else:
-                self._p1 -= 1
-                self._x1 -= 1 if self._x1 > 0 else 0
-                self._z1 -= 1 if not self.odd_round and self._z1 > 0 else 0
+                self._context.collapse_previous_score_bracket()
+                self._incompatible_player = None
+                step = self._c1
+
+        return step
+
+    def _c14a(self):
+        step = self._c3a
+
+        if self._p1 == 0:
+            self._context.collapse_current_score_bracket()
+            step = None
+        else:
+            self._p1 -= 1
+            self._x1 -= 1 if self._x1 > 0 else 0
+            self._z1 -= 1 if not self.odd_round and self._z1 > 0 else 0
+
+        return step
+
+    def _c14b(self):
+        step = self._c3a
+
+        if self._paired_floaters and not self._lsb:
+            self._p1 -= 1
+            self._x1 -= 1 if self._x1 > 0 else 0
+            self._z1 -= 1 if not self.odd_round and self._z1 > 0 else 0
+        else:
+            if self._m1 > 1:
+                self._m1 -= 1
+                step = self._c3a
+            elif self._m1 == 1:
+                self._m1 = 0
+                self._p1 = self._p0
+                step = self._c2b
 
         return step
 
@@ -657,11 +702,13 @@ class PairingCriteria:
 
 class PairingContext:
     def __init__(self, round_no, last_round, bye_value, score_brackets):
+        self._ix             = 0
         self._round_no       = round_no
         self._last_round     = last_round
         self._bye_value      = bye_value
         self._score_brackets = score_brackets
-        self._ix             = 0
+        self._downfloaters   = []
+        self._backtrackers   = []
 
     def __iter__(self):
         return self
@@ -690,17 +737,37 @@ class PairingContext:
     def lowest_score_bracket(self):
         return self._index == len(self._score_brackets) - 1
 
+    def collapse_current_score_bracket(self):
+        for p in self._current_score_bracket.all_players:
+            self._next_score_bracket.add_player(p)
+        self._score_brackets.remove(self._current_score_bracket)
+        self._ix -= 1
+
+    def collapse_previous_score_bracket(self):
+        for p in self._previous_score_bracket.all_players:
+            self._current_score_bracket.add_player(p)
+        self._score_brackets.remove(self._previous_score_bracket)
+        self._ix -= 1
+
+    def can_downfloat(self, player):
+        return (player not in self._downfloaters
+                and not self.lowest_score_bracket)
+
     def downfloat(self, player):
+        self._downfloaters.append(player)
         self._current_score_bracket.remove_player(player)
         self._next_score_bracket.add_player(player)
 
     def can_backtrack(self, player):
-        return self._previous_score_bracket.can_backtrack(player)
+        return (player not in self._backtrackers
+                and self._index != 0
+                and self._previous_score_bracket.can_backtrack(player))
 
     def backtrack(self, player):
+        self._backtrackers.append(player)
         self._current_score_bracket.remove_player(player)
         self._previous_score_bracket.backtrack(player)
-        self._ix -= 1
+        self._ix -= 2
 
     def finalize_pairings(self):
         for sb in self._score_brackets:
