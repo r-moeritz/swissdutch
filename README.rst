@@ -10,7 +10,7 @@ Usage
 
     from swissdutch.dutch import DutchPairingEngine
     from swissdutch.constants import FideTitle, Colour, FloatStatus
-    from swissdutch.pairing import Player
+    from swissdutch.player import Player
 
     engine  = DutchPairingEngine()
     input_players = (
