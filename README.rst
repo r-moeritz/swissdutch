@@ -39,9 +39,9 @@ Status
 
 Alpha. All the rules of the Dutch system have been implemented except for
 **D.4** which specifies the correct procedure to obtain the best pairings in
-the LSB if it is heterogenous but being treated as homogeneous (due to 50% or
-more of the players being floaters). See issue #1. I hope to implement this
-soon.
+the LSB if it is heterogeneous but being treated as homogeneous (due to 50% 
+or more of the players being floaters). See issue #1. I hope to implement 
+this soon.
 
 License
 -------
