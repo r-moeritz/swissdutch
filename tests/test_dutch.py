@@ -1,7 +1,7 @@
 import unittest
 from swissdutch.dutch import DutchPairingEngine
 from swissdutch.constants import FideTitle, Colour, FloatStatus
-from swissdutch.pairing import Player
+from swissdutch.player import Player
 
 class Test_DutchPairingEngine(unittest.TestCase):
     def setUp(self):

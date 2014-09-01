@@ -31,6 +31,9 @@
     <Compile Include="pairing.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="player.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="swiss.py" />
     <Compile Include="constants.py">
       <SubType>Code</SubType>
