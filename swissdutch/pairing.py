@@ -172,6 +172,7 @@ class ScoreBracket:
                 player = p1
                 if len(other_players) == 1:
                     player = p1 if p1.score >= p2.score else p2
+
                 self._incompatible_player = player
 
                 if player.score > self._score:
@@ -182,7 +183,6 @@ class ScoreBracket:
                     break
                 elif self._context.can_downfloat(player):
                     self._context.downfloat(player)
-                    self._incompatible_player = None
 
         if not len(self._players):
             step = None
@@ -251,34 +251,34 @@ class ScoreBracket:
         return self._c6
 
     def _c6(self):
-        pairings    = [(self._s1[i], self._s2[i]) for i in range(len(self._s1))]
-        unpaired    = list(set(self._s1 + self._s2) - set(sum(pairings, ())))
-        bye         = unpaired[0] if len(unpaired) == 1 and self._lsb else None
-        downfloater = unpaired[0] if not(bye) and len(unpaired) == 1 else None
+        pairings = [(self._s1[i], self._s2[i]) for i in range(len(self._s1))]
+        unpaired = list(set(self._s1 + self._s2) - set(sum(pairings, ())))
+        bye      = unpaired[0] if len(unpaired) == 1 and self._lsb else None
+        floater  = unpaired[0] if not(bye) and len(unpaired) == 1 else None
 
         step = None
-        if self._criteria.satisfied(pairings, downfloater, bye):
-            if downfloater:
-                if self._context.can_downfloat(downfloater):
+        if self._criteria.satisfied(pairings, floater, bye):
+            if floater:
+                def alt_floaters(): 
+                    return sum(self._criteria.b5(p) 
+                               and self._criteria.b6(p) 
+                               and self._context.can_downfloat(p)
+                               for p in self._players)
+
+                if self._context.can_downfloat(floater) or not alt_floaters():
+                    # If the player isn't allowed to float and there are no 
+                    # alternative floaters then we force him to float anyway 
+                    # and let the next bracket figure out what to do with him.
                     self._pairings += pairings
-                    self._context.downfloat(downfloater)
+                    self._context.downfloat(floater)
                 else:
-                    possible_floaters = sum(self._criteria.b5(p) 
-                                            and self._criteria.b6(p) 
-                                            and self._context.can_downfloat(p)
-                                            for p in self._players)
-                    if possible_floaters:
-                        step = self._c7 # try to find a different floater
-                    else:
-                        # Force this floater down anyway & let the next score
-                        # bracket deal with it.
-                        self._context.downfloat(downfloater)
+                    step = self._c7 # try to find a different floater
             else:
                 self._pairings += pairings
                 self._bye       = bye
 
                 if len(unpaired) > 1:
-                    # Pair homogenous remainder
+                    # Pair remainder
                     self._paired_floaters      = True
                     self._saved_transpositions = self._transpositions
                     self._transpositions       = None
@@ -295,7 +295,7 @@ class ScoreBracket:
     def _c7(self):
         if not self._transpositions:
             self._transpositions = itertools.permutations(self._s2)
-            next(self._transpositions) # skip 1st one since it's equal to self._s2
+            next(self._transpositions) # skip 1st one since it's equal to current self._s2
 
         step = self._c6
 
@@ -320,7 +320,8 @@ class ScoreBracket:
         end_s1_subsets = len(s1_subsets) - 1
         end_s2_subsets = len(s2_subsets) - 1
 
-        diff = lambda s1sub, s2sub: abs(sum(p.score for p in s1sub) - sum(p.score for p in s2sub))
+        def diff(s1sub, s2sub): 
+            return abs(sum(p.score for p in s1sub) - sum(p.score for p in s2sub))
         min_diff = diff(s1_subsets[0], s2_subsets[0])
         max_diff = diff(s1_subsets[-1], s2_subsets[-1])
 
@@ -346,7 +347,7 @@ class ScoreBracket:
         return exchanges
 
     def _c8(self):
-        step    = self._c5
+        step = self._c5
 
         if self._exchanges == None:
             self._s1.sort(key=operator.attrgetter('pairing_no'), reverse=True)
@@ -385,12 +386,12 @@ class ScoreBracket:
         return step
 
     def _c9(self):
-        self._pairings          = []
-        self._transpositions    = self._saved_transpositions
-        self._s1                = self._players[:self._p]
-        self._s2                = self._players[self._p:]
-        self._p                 = self._p1
-        self._x                 = self._x1
+        self._pairings       = []
+        self._transpositions = self._saved_transpositions
+        self._s1             = self._players[:self._p]
+        self._s2             = self._players[self._p:]
+        self._p              = self._p1
+        self._x              = self._x1
         return self._c7
 
     def _c10a(self):
@@ -542,35 +543,39 @@ class PairingCriteria:
 
     def b5(self, p1, p2=None):
         """No player shall receive an identical float in two consecutive rounds."""
-        t1 = (p1.float_status != FloatStatus.down
-              if not(p2) and self.b5_enabled_for_downfloaters else True)
-        t2 = ((p1.score == p2.score
-              or (p1.score < p2.score
-                  and p1.float_status != FloatStatus.up)
-              or (p1.score > p2.score
-                  and p2.float_status != FloatStatus.up))
-              if p2 and self.b5_enabled_for_upfloaters else True)
-        return t1 and t2
+        def t1():
+            return (p1.float_status != FloatStatus.down
+                    if not(p2) and self.b5_enabled_for_downfloaters else True)
+        def t2():
+            return ((p1.score == p2.score 
+                     or (p1.score < p2.score and p1.float_status != FloatStatus.up)
+                     or (p1.score > p2.score and p2.float_status != FloatStatus.up))
+                    if p2 and self.b5_enabled_for_upfloaters else True)
+        return t1() and t2()
 
     def b6(self, p1, p2=None):
         """No player shall receive an identical float as two rounds before."""
-        t1 = (p1.float_status != FloatStatus.downPrev
-              if not(p2) and self.b6_enabled_for_downfloaters else True)
-        t2 = ((p1.score == p2.score
-              or (p1.score < p2.score
-                  and p1.float_status != FloatStatus.upPrev)
-              or (p1.score > p2.score
-                  and p2.float_status != FloatStatus.upPrev))
-              if p2 and self.b6_enabled_for_upfloaters else True)
-        return t1 and t2
+        def t1(): 
+            return (p1.float_status != FloatStatus.downPrev
+                    if not(p2) and self.b6_enabled_for_downfloaters else True)
+        def t2():
+            return ((p1.score == p2.score
+                     or (p1.score < p2.score and p1.float_status != FloatStatus.upPrev)
+                     or (p1.score > p2.score and p2.float_status != FloatStatus.upPrev))
+                    if p2 and self.b6_enabled_for_upfloaters else True)
+        return t1() and t2()
 
     def satisfied(self, pairings, downfloater, bye):
-        t1 = all(self.b1a(p1, p2) and self.b2(p1, p2) and self.b5(p1, p2) 
-                 and self.b6(p1, p2) for (p1, p2) in pairings)
-        t2 = self.b4(pairings) if pairings else True
-        t3 = self.b5(downfloater) and self.b6(downfloater) if downfloater else True
-        t4 = self.b1b(bye) if bye else True
-        return t1 and t2 and t3 and t4
+        def t1():
+            return all(self.b1a(p1, p2) and self.b2(p1, p2) and self.b5(p1, p2)
+                       and self.b6(p1, p2) for (p1, p2) in pairings)
+        def t2(): 
+            return self.b4(pairings) if pairings else True
+        def t3():
+            return self.b5(downfloater) and self.b6(downfloater) if downfloater else True
+        def t4():
+           return self.b1b(bye) if bye else True
+        return t1() and t2() and t3() and t4()
 
 class PairingContext:
     def __init__(self, round_no, last_round, bye_value, score_brackets):
