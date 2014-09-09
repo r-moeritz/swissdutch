@@ -31,6 +31,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="DESCRIPTION.rst" />
+    <Content Include="LICENSE" />
     <Content Include="MANIFEST.in" />
     <Content Include="README.rst" />
   </ItemGroup>
