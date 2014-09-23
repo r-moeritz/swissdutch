@@ -20,6 +20,7 @@ setup(
     packages         = ['swissdutch'],
     classifiers      = [
         'Development Status :: 3 - Alpha',
+        'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Operating System :: OS Independent',
