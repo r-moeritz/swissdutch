@@ -322,13 +322,17 @@ class ScoreBracket:
 
         def diff(s1sub, s2sub): 
             return abs(sum(p.score for p in s1sub) - sum(p.score for p in s2sub))
+
+        exchanges = []
+        if not(s1_subsets) or not(s2_subsets):
+            return exchanges
+
         min_diff = diff(s1_subsets[0], s2_subsets[0])
         max_diff = diff(s1_subsets[-1], s2_subsets[-1])
 
         delta = min_diff
         i = 0
         k = 0
-        exchanges = []
 
         while delta <= max_diff:
             if delta == diff(s1_subsets[i], s2_subsets[k]):
